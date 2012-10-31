@@ -1,7 +1,10 @@
 [opmlfeed]
 ==========
 
-opmlfeed is an opmlfeed subscription service.
+opmlfeed is an opmlfeed subscription service. The name is somewhat
+misleading now; while it originally served OPML files, now it serves
+JSON containing feed information suitable for constructing an OPML
+file on the client.
 
 
 Dependencies
