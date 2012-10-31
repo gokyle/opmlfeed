@@ -1,0 +1,38 @@
+opmlfeed is an OPML subscription service. it is a RESTful service,
+and can be interacted with in the following ways:
+
+GET /
+        display the service version and this help information
+
+GET /<shortcode>
+        display the feed information stored under the shortcode as
+        a json containing a "feeds" element with an array of feeds,
+        for example:
+                {"feeds":[{"title":"My Feed",
+                           "xml":"http://feedburner.com/example-feed",
+                           "web":"http://example.com"},
+                          {"title":"Their Feed",
+                           "xml":"http://feedburner.com/their-feed",
+                           "web":"http://example.net"}]
+                }
+
+POST /
+        update a client's feed information. this JSON data expects
+        two elements:
+                uuid: a standard UUID in the form
+                        ABCDEFGH-ABCD-ABCD-ABCD-ABCDEFGHIJKL
+                      where the allowed characters are [A-Zaz0-9]
+                feeds: a list of feeds; each feed should have the
+                       elements 'title', 'xml' (pointing to the feed's
+                       subscription url), and 'web' (pointing to the
+                       feed's homepage).
+        for example:
+                {"uuid":"54806ECE-2A3A-4828-B8DA-FF78B7208FF4",
+                 "feeds":[{"title":"My Feed",
+                           "xml":"http://feedburner.com/example-feed",
+                           "web":"http://example.com"},
+                          {"title":"Their Feed",
+                           "xml":"http://feedburner.com/their-feed",
+                           "web":"http://example.net"}]
+                }
+

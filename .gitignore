@@ -1,0 +1,6 @@
+.*.sw?
+*.key
+*.cert
+.hg*
+testdata
+opmlfeed
