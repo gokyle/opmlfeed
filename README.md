@@ -10,6 +10,13 @@ Dependencies
 * redis (although you can change the database backend)
 
 
+Deployment
+----------
+* Install redis
+* Edit env.sh to suit your needs and source it
+* go build && ./opmlfeed
+
+
 Notes
 -----
 
