@@ -32,7 +32,7 @@ func InitMux() {
 	log.Println("[+] setting up redis connection")
 	db := os.Getenv("OPMLFEED_REDIS_DB")
 	REDIS_ADDR = os.Getenv("REDIS_ADDR")
-        REDIS_PASS = os.Getenv("REDIS_PASS")
+	REDIS_PASS = os.Getenv("REDIS_PASS")
 	OPMLFEED_REDIS_DB, err = strconv.Atoi(db)
 	if err != nil {
 		log.Panic("invalid redis db specification: ", err.Error())
@@ -173,14 +173,14 @@ func FetchFeed(uuid string) (update *Update, err error) {
 // ShortIdUnused looks up to see if the short code is presently unused
 func ShortIdUnused(shortid string) (valid bool, err error) {
 	r := redis.New(REDIS_ADDR, OPMLFEED_REDIS_DB, REDIS_PASS)
-        var resp []byte
-        resp, err = r.Get("OF_" + shortid)
-        if err != nil || len(resp) > 0 {
-                valid = false
-        } else {
-                valid = true
-        }
-        return
+	var resp []byte
+	resp, err = r.Get("OF_" + shortid)
+	if err != nil || len(resp) > 0 {
+		valid = false
+	} else {
+		valid = true
+	}
+	return
 }
 
 // GenerateShortUrl generates a new short code for a URL.
