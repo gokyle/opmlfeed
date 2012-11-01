@@ -7,6 +7,9 @@
    parameter and the uuid under the 'id' parameter. opmlfeed
    will return the url for the user's feed. Users can then
    perform a GET request on that url to retrieve the OPML feed.
+
+   opmlfeed may be started from the included binary. Relevant
+   environment variables include:
 */
 /*
    This package is provided under a dual ISC / public domain license.

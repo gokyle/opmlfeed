@@ -8,62 +8,39 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"regexp"
+	"os"
+	"strconv"
 )
 
-const index_file = "index.txt"
-var opml_mux = http.NewServeMux()
-var index_text []byte
-
-// regular expressions
-var (
-	uuid_regex_str = "\\w{8}-\\w{4}-\\w{4}-\\w{4}-\\w{12}"
-	uuid_regex     = regexp.MustCompile("^" + uuid_regex_str + "$")
-	uuid_strip     = regexp.MustCompile("^/f/(" + uuid_regex_str + ")$")
-	feed_strip     = regexp.MustCompile("^/(\\w{6})$")
-	url_regex_str  = "^(https?:\\/\\/)?([\\da-z\\.-]+)\\." +
-		"([a-z\\.]{2,6})([\\/\\w \\.-]*)*\\/?$"
-	url_regex = regexp.MustCompile(url_regex_str)
-)
-
-var (
-	OPML_REDIS_ADDR = "127.0.0.1:6379"
-	OPML_REDIS_DB   = 0
-)
-
-// type Feed represents a single feed
-type Feed struct {
-	Title string `json="title"`
-	Xml   string `json="xml"`
-	Web   string `json="web"`
-}
-
-// type Update represents a client's data as uploaded to the server
-type Update struct {
-	UUID  string `json="uuid"`
-	Feeds []Feed `json="feeds"`
-}
-
-type Response struct {
-        Feeds []Feed `json="feeds"`
-}
-
-func loadUpdate(jsonData []byte) (update *Update, err error) {
+// LoadUpdate takes incoming JSON data and unpacks it into an update value
+func LoadUpdate(jsonData []byte) (update *Update, err error) {
 	update = new(Update)
 	err = json.Unmarshal(jsonData, &update)
 	return
 }
 
-func initMux() {
-        var err error
-        index_text, err = ioutil.ReadFile(index_file)
-        if err != nil {
-                log.Panic("[!] unable to load index file: ", err.Error())
-        }
-	opml_mux.HandleFunc("/", opmlRoot)
+// initialise the code necessary for actually serving client responses
+// and interacting with the database.
+func InitMux() {
+	var err error
+	index_text, err = ioutil.ReadFile(index_file)
+	if err != nil {
+		log.Panic("[!] unable to load index file: ", err.Error())
+	}
+	opml_mux.HandleFunc("/", OpmlRoot)
+
+	log.Println("[+] setting up redis connection")
+	db := os.Getenv("OPMLFEED_REDIS_DB")
+	REDIS_ADDR = os.Getenv("REDIS_ADDR")
+        REDIS_PASS = os.Getenv("REDIS_PASS")
+	OPMLFEED_REDIS_DB, err = strconv.Atoi(db)
+	if err != nil {
+		log.Panic("invalid redis db specification: ", err.Error())
+	}
 }
 
-func opmlRoot(w http.ResponseWriter, r *http.Request) {
+// OpmlRoot is the primary routing construct
+func OpmlRoot(w http.ResponseWriter, r *http.Request) {
 	addHStatus := func(code int) string {
 		return fmt.Sprintf(" %d", code)
 	}
@@ -82,10 +59,9 @@ func opmlRoot(w http.ResponseWriter, r *http.Request) {
 			log.Println(status)
 			return
 		}
-		update, err := loadUpdate(rawJson)
+		update, err := LoadUpdate(rawJson)
 		if err != nil || !update.Validate() {
 			res := http.StatusBadRequest
-			status += fmt.Sprintf(" %d", res)
 			status += addHStatus(res)
 			w.WriteHeader(res)
 			w.Header().Set("content-type", "text/plain")
@@ -98,7 +74,7 @@ func opmlRoot(w http.ResponseWriter, r *http.Request) {
 			log.Println(status)
 			return
 		}
-		shortid, err := clientUpdate(update)
+		shortid, err := ClientUpdate(update)
 		if err != nil {
 			res := http.StatusInternalServerError
 			status += addHStatus(res)
@@ -130,7 +106,7 @@ func opmlRoot(w http.ResponseWriter, r *http.Request) {
 				log.Println(status)
 				return
 			}
-			update, err := fetchFeed(uuid)
+			update, err := FetchFeed(uuid)
 			if err != nil {
 				res := http.StatusNotFound
 				status += addHStatus(res)
@@ -141,8 +117,8 @@ func opmlRoot(w http.ResponseWriter, r *http.Request) {
 				log.Println(status)
 				return
 			}
-                        var response Response
-                        response.Feeds = update.Feeds
+			var response Response
+			response.Feeds = update.Feeds
 			jsonResp, err = json.Marshal(response)
 			if err != nil {
 				res := http.StatusBadRequest
@@ -162,9 +138,9 @@ func opmlRoot(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("content-type", "text/plain")
 			w.Write([]byte(fmt.Sprintf("opmlfeed server %s\n\n",
 				OPMLFEED_VERSION)))
-                        w.Write(index_text)
+			w.Write(index_text)
 			status += addHStatus(http.StatusOK)
-                        log.Println(status)
+			log.Println(status)
 		} else {
 			res := http.StatusNotFound
 			status += addHStatus(res)
@@ -176,9 +152,13 @@ func opmlRoot(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func fetchFeed(uuid string) (update *Update, err error) {
+/*
+ * FetchFeed looks up the given UUID, and returns any associated client
+ * data
+ */
+func FetchFeed(uuid string) (update *Update, err error) {
 	var opml []byte
-	r := redis.New("", OPML_REDIS_DB, "")
+	r := redis.New(REDIS_ADDR, OPMLFEED_REDIS_DB, REDIS_PASS)
 
 	opml, err = r.Get("OF_" + uuid)
 	if len(opml) == 0 {
@@ -190,29 +170,22 @@ func fetchFeed(uuid string) (update *Update, err error) {
 	return
 }
 
-func (update *Update) Validate() (valid bool) {
-	valid = uuid_regex.MatchString(update.UUID)
-	if !valid {
-		return
-	}
-
-	for _, feed := range update.Feeds {
-		valid = url_regex.MatchString(feed.Xml)
-		if valid {
-			valid = url_regex.MatchString(feed.Web)
-		}
-		if !valid {
-			break
-		}
-	}
-	return
+// ShortIdUnused looks up to see if the short code is presently unused
+func ShortIdUnused(shortid string) (valid bool, err error) {
+	r := redis.New(REDIS_ADDR, OPMLFEED_REDIS_DB, REDIS_PASS)
+        var resp []byte
+        resp, err = r.Get("OF_" + shortid)
+        if err != nil || len(resp) > 0 {
+                valid = false
+        } else {
+                valid = true
+        }
+        return
 }
 
-func opmlFeed(w http.ResponseWriter, r *http.Request) {
-}
-
-func generateShortUrl() (shortid string, err error) {
-	r := redis.New("", OPML_REDIS_DB, "")
+// GenerateShortUrl generates a new short code for a URL.
+func GenerateShortUrl() (shortid string, err error) {
+	r := redis.New(REDIS_ADDR, OPMLFEED_REDIS_DB, REDIS_PASS)
 	var resp []byte
 	for {
 		shortid = shorten.Shorten()
@@ -229,18 +202,22 @@ func generateShortUrl() (shortid string, err error) {
 	return
 }
 
-func clientUpdate(update *Update) (shortid string, err error) {
-	r := redis.New("", OPML_REDIS_DB, "")
+/*
+ * ClientUpdate stores the given update to the database, and returns
+ * 
+ */
+func ClientUpdate(update *Update) (shortid string, err error) {
+	r := redis.New(REDIS_ADDR, OPMLFEED_REDIS_DB, REDIS_PASS)
 	id := "OF_" + update.UUID
 
 	var jsonData []byte
 	var bshortid []byte
-        var clientData Response
-        clientData.Feeds = update.Feeds
+	var clientData Response
+	clientData.Feeds = update.Feeds
 	if bshortid, err = r.Get("OF_id_" + update.UUID); err != nil {
 		return
 	} else if len(bshortid) == 0 {
-		shortid, err = generateShortUrl()
+		shortid, err = shorten.ShortenUrl(ShortIdUnused)
 	} else {
 		shortid = string(bshortid)
 	}
@@ -250,7 +227,6 @@ func clientUpdate(update *Update) (shortid string, err error) {
 	}
 
 	jsonData, err = json.Marshal(clientData)
-        fmt.Println("[+] json data: ", string(jsonData))
 	if err != nil {
 		return
 	}
@@ -264,9 +240,10 @@ func clientUpdate(update *Update) (shortid string, err error) {
 	return
 }
 
+// ShortIdToUUID takes a short ID and looks up the associated UUID.
 func shortIdToUUID(shortid string) (uuid string, err error) {
 	key := "OF_" + shortid
-	r := redis.New("", OPML_REDIS_DB, "")
+	r := redis.New(REDIS_ADDR, OPMLFEED_REDIS_DB, REDIS_PASS)
 	bval, err := r.Get(key)
 	if err != nil {
 		log.Println("[!] redis error: ", err.Error())

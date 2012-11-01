@@ -9,31 +9,16 @@ import (
 	"time"
 )
 
-const OPMLFEED_VERSION = "0.9.2"
-
-var (
-	OPMLFEED_SSL_KEY  string
-	OPMLFEED_SSL_CERT string
-	SERVER_ADDR       string
-	SERVER_PORT       string
-)
-
 func init() {
 	OPMLFEED_SSL_KEY = os.Getenv("OPMLFEED_SSLKEY")
 	OPMLFEED_SSL_CERT = os.Getenv("OPMLFEED_SSLCERT")
 	SERVER_ADDR = os.Getenv("SERVER_ADDR")
 	SERVER_PORT = os.Getenv("SERVER_PORT")
-	initMux()
+	InitMux()
 }
 
 func main() {
-	crt, err := tls.LoadX509KeyPair(OPMLFEED_SSL_KEY, OPMLFEED_SSL_CERT)
-	if err != nil {
-		log.Println("[!] error loading SSL keypair: ", err.Error())
-	}
-	cfg := &tls.Config{
-		Certificates: []tls.Certificate{crt},
-	}
+	cfg := new(tls.Config)
 	srv := &http.Server{
 		Addr:           fmt.Sprintf("%s:%s", SERVER_ADDR, SERVER_PORT),
 		Handler:        opml_mux,
