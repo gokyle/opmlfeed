@@ -4,7 +4,6 @@ import (
 	"bitbucket.org/kisom/opmlfeed/shorten"
 	"encoding/json"
 	"fmt"
-	"github.com/simonz05/godis/redis"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -95,7 +94,7 @@ func OpmlRoot(w http.ResponseWriter, r *http.Request) {
 		shortid := feed_strip.ReplaceAllString(r.URL.Path, "$1")
 		if len(shortid) == shorten.ShortLen {
 			var jsonResp []byte
-			uuid, err := shortIdToUUID(shortid)
+			uuid, err := uuidFromShort(shortid)
 			if len(uuid) == 0 {
 				res := http.StatusNotFound
 				status += addHStatus(res)
@@ -106,7 +105,7 @@ func OpmlRoot(w http.ResponseWriter, r *http.Request) {
 				log.Println(status)
 				return
 			}
-			update, err := FetchFeed(uuid)
+			update, err := FetchFeed(string(uuid))
 			if err != nil {
 				res := http.StatusNotFound
 				status += addHStatus(res)
@@ -157,10 +156,7 @@ func OpmlRoot(w http.ResponseWriter, r *http.Request) {
  * data
  */
 func FetchFeed(uuid string) (update *Update, err error) {
-	var opml []byte
-	r := redis.New(REDIS_ADDR, OPMLFEED_REDIS_DB, REDIS_PASS)
-
-	opml, err = r.Get("OF_" + uuid)
+        opml, err := opmlFromUUID(uuid)
 	if len(opml) == 0 {
 		return
 	}
@@ -172,9 +168,8 @@ func FetchFeed(uuid string) (update *Update, err error) {
 
 // ShortIdUnused looks up to see if the short code is presently unused
 func ShortIdUnused(shortid string) (valid bool, err error) {
-	r := redis.New(REDIS_ADDR, OPMLFEED_REDIS_DB, REDIS_PASS)
 	var resp []byte
-	resp, err = r.Get("OF_" + shortid)
+        resp, err = uuidFromShort(shortid)
 	if err != nil || len(resp) > 0 {
 		valid = false
 	} else {
@@ -185,13 +180,12 @@ func ShortIdUnused(shortid string) (valid bool, err error) {
 
 // GenerateShortUrl generates a new short code for a URL.
 func GenerateShortUrl() (shortid string, err error) {
-	r := redis.New(REDIS_ADDR, OPMLFEED_REDIS_DB, REDIS_PASS)
 	var resp []byte
 	for {
 		shortid = shorten.Shorten()
 		if len(shortid) == 0 {
 			continue
-		} else if resp, err = r.Get("OF_" + shortid); err != nil {
+		} else if resp, err = uuidFromShort(shortid); err != nil {
 			log.Printf("[!] redis error: %s\n", err.Error())
 			shortid = ""
 			break
@@ -207,14 +201,11 @@ func GenerateShortUrl() (shortid string, err error) {
  * 
  */
 func ClientUpdate(update *Update) (shortid string, err error) {
-	r := redis.New(REDIS_ADDR, OPMLFEED_REDIS_DB, REDIS_PASS)
-	id := "OF_" + update.UUID
-
 	var jsonData []byte
 	var bshortid []byte
 	var clientData Response
 	clientData.Feeds = update.Feeds
-	if bshortid, err = r.Get("OF_id_" + update.UUID); err != nil {
+	if bshortid, err = shortFromUUID(update.UUID); err != nil {
 		return
 	} else if len(bshortid) == 0 {
 		shortid, err = shorten.ShortenUrl(ShortIdUnused)
@@ -230,25 +221,11 @@ func ClientUpdate(update *Update) (shortid string, err error) {
 	if err != nil {
 		return
 	}
-	if err = r.Set(id, jsonData); err != nil {
-		return
-	} else if err = r.Set("OF_"+shortid, update.UUID); err != nil {
-		return
-	} else if err = r.Set("OF_id_"+update.UUID, shortid); err != nil {
+	if err = storeClientData(update.UUID, jsonData); err != nil {
 		return
 	}
-	return
-}
-
-// ShortIdToUUID takes a short ID and looks up the associated UUID.
-func shortIdToUUID(shortid string) (uuid string, err error) {
-	key := "OF_" + shortid
-	r := redis.New(REDIS_ADDR, OPMLFEED_REDIS_DB, REDIS_PASS)
-	bval, err := r.Get(key)
-	if err != nil {
-		log.Println("[!] redis error: ", err.Error())
-	} else if len(bval) > 0 {
-		uuid = string(bval)
+        if err = associateUUIDandShortid(shortid, update.UUID); err != nil {
+		return
 	}
 	return
 }
