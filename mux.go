@@ -176,7 +176,7 @@ func GenerateShortUrl() (shortid string, err error) {
 		if len(shortid) == 0 {
 			continue
 		} else if resp, err = uuidFromShort(shortid); err != nil {
-			log.Printf("[!] redis error: %s\n", err.Error())
+			log.Printf("[!] db error: %s\n", err.Error())
 			shortid = ""
 			break
 		} else if len(resp) == 0 {

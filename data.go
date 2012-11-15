@@ -12,11 +12,8 @@ const (
 
 // Server configuration variables.
 var (
-	OPMLFEED_REDIS_DB int
 	OPMLFEED_SSL_KEY  string
 	OPMLFEED_SSL_CERT string
-	REDIS_ADDR        string
-	REDIS_PASS        string
 	SERVER_ADDR       string
 	SERVER_PORT       string
 )

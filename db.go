@@ -7,6 +7,12 @@ import (
 	"strconv"
 )
 
+var (
+	OPMLFEED_REDIS_DB int
+	REDIS_ADDR        string
+	REDIS_PASS        string
+)
+
 func initDatabase() {
 	var err error
 	log.Println("[+] setting up redis connection")
