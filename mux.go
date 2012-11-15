@@ -7,8 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
 )
 
 // LoadUpdate takes incoming JSON data and unpacks it into an update value
@@ -27,15 +25,7 @@ func InitMux() {
 		log.Panic("[!] unable to load index file: ", err.Error())
 	}
 	opml_mux.HandleFunc("/", OpmlRoot)
-
-	log.Println("[+] setting up redis connection")
-	db := os.Getenv("OPMLFEED_REDIS_DB")
-	REDIS_ADDR = os.Getenv("REDIS_ADDR")
-	REDIS_PASS = os.Getenv("REDIS_PASS")
-	OPMLFEED_REDIS_DB, err = strconv.Atoi(db)
-	if err != nil {
-		log.Panic("invalid redis db specification: ", err.Error())
-	}
+	initDatabase()
 }
 
 // OpmlRoot is the primary routing construct
@@ -156,7 +146,7 @@ func OpmlRoot(w http.ResponseWriter, r *http.Request) {
  * data
  */
 func FetchFeed(uuid string) (update *Update, err error) {
-        opml, err := opmlFromUUID(uuid)
+	opml, err := opmlFromUUID(uuid)
 	if len(opml) == 0 {
 		return
 	}
@@ -169,7 +159,7 @@ func FetchFeed(uuid string) (update *Update, err error) {
 // ShortIdUnused looks up to see if the short code is presently unused
 func ShortIdUnused(shortid string) (valid bool, err error) {
 	var resp []byte
-        resp, err = uuidFromShort(shortid)
+	resp, err = uuidFromShort(shortid)
 	if err != nil || len(resp) > 0 {
 		valid = false
 	} else {
@@ -224,7 +214,7 @@ func ClientUpdate(update *Update) (shortid string, err error) {
 	if err = storeClientData(update.UUID, jsonData); err != nil {
 		return
 	}
-        if err = associateUUIDandShortid(shortid, update.UUID); err != nil {
+	if err = associateUUIDandShortid(shortid, update.UUID); err != nil {
 		return
 	}
 	return
