@@ -30,7 +30,6 @@ func InitMux() {
 
 func addHStatus(code int) string {
 	return fmt.Sprintf(" %d", code)
-
 }
 
 func badRequest(w http.ResponseWriter, r *http.Request, status string,
@@ -100,6 +99,7 @@ func notFound(w http.ResponseWriter, r *http.Request, status string) {
 }
 
 func index(w http.ResponseWriter, r *http.Request, status string) {
+        fmt.Println("sending index")
 	w.Header().Set("content-type", "text/plain")
 	w.Write([]byte(fmt.Sprintf("opmlfeed server %s\n\n",
 		OPMLFEED_VERSION)))
@@ -109,6 +109,7 @@ func index(w http.ResponseWriter, r *http.Request, status string) {
 }
 
 func getRouter(w http.ResponseWriter, r *http.Request, status string) {
+        fmt.Println("[+] getRouter")
 	shortid := feed_strip.ReplaceAllString(r.URL.Path, "$1")
 	if len(shortid) == shorten.ShortLen {
 		var jsonResp []byte
