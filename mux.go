@@ -28,116 +28,128 @@ func InitMux() {
 	initDatabase()
 }
 
+func addHStatus(code int) string {
+	return fmt.Sprintf(" %d", code)
+
+}
+
+func badRequest(w http.ResponseWriter, r *http.Request, status string,
+        err error) {
+	res := http.StatusBadRequest
+	status += addHStatus(res)
+	w.WriteHeader(res)
+	w.Header().Set("content-type", "text/plain")
+	w.Write([]byte("400 Bad Request\n"))
+	w.Write([]byte(err.Error()))
+	log.Println(status)
+	return
+}
+
+func intServerError(w http.ResponseWriter, r *http.Request, status string,
+        err error) {
+	res := http.StatusInternalServerError
+	status += addHStatus(res)
+	w.WriteHeader(http.StatusInternalServerError)
+	w.Header().Set("content-type", "text/plain")
+	w.Write([]byte("500 Internal Server Error\n"))
+	w.Write([]byte(err.Error()))
+	log.Println(status)
+	return
+}
+
+func sendJsonShortid(w http.ResponseWriter, r *http.Request, status string,
+        shortid string) {
+	res := http.StatusOK
+	status += addHStatus(res)
+	w.Header().Set("content-type", "text/plain")
+	w.Write([]byte(shortid))
+}
+
+func postRouter(w http.ResponseWriter, r *http.Request, status string) {
+	var rawJson []byte
+	var err error
+	if rawJson, err = ioutil.ReadAll(r.Body); err != nil {
+		badRequest(w, r, status, err)
+		return
+	}
+	update, err := LoadUpdate(rawJson)
+	if err != nil || !update.Validate() {
+		badRequest(w, r, status, err)
+		return
+	}
+	shortid, err := ClientUpdate(update)
+	if err != nil {
+		intServerError(w, r, status, err)
+		return
+	} else {
+		sendJsonShortid(w, r, status, shortid)
+		return
+	}
+	return
+}
+
+func notFound(w http.ResponseWriter, r *http.Request, status string) {
+	res := http.StatusNotFound
+	status += addHStatus(res)
+	w.WriteHeader(res)
+	w.Header().Set("content-type", "text/plain")
+	w.Write([]byte("feed not found\n"))
+	log.Println(status)
+	return
+}
+
+func index(w http.ResponseWriter, r *http.Request, status string) {
+	w.Header().Set("content-type", "text/plain")
+	w.Write([]byte(fmt.Sprintf("opmlfeed server %s\n\n",
+		OPMLFEED_VERSION)))
+	w.Write(index_text)
+	status += addHStatus(http.StatusOK)
+	log.Println(status)
+}
+
+func getRouter(w http.ResponseWriter, r *http.Request, status string) {
+	shortid := feed_strip.ReplaceAllString(r.URL.Path, "$1")
+	if len(shortid) == shorten.ShortLen {
+		var jsonResp []byte
+		uuid, err := uuidFromShort(shortid)
+		if len(uuid) == 0 {
+		}
+		update, err := FetchFeed(string(uuid))
+		if err != nil {
+			notFound(w, r, status)
+			return
+		}
+		var response Response
+		response.Feeds = update.Feeds
+		jsonResp, err = json.Marshal(response)
+		if err != nil {
+			badRequest(w, r, status, err)
+			return
+		} else {
+			status += addHStatus(http.StatusOK)
+			log.Println(status)
+			w.Write(jsonResp)
+		}
+		return
+	} else if r.URL.Path == "/" {
+		index(w, r, status)
+		return
+	} else {
+		notFound(w, r, status)
+		return
+	}
+}
+
 // OpmlRoot is the primary routing construct
 func OpmlRoot(w http.ResponseWriter, r *http.Request) {
-	addHStatus := func(code int) string {
-		return fmt.Sprintf(" %d", code)
-	}
 	status := fmt.Sprintf("%s %s %s", r.RemoteAddr, r.Method,
 		r.URL.String())
 	if r.Method == "POST" {
-		var rawJson []byte
-		var err error
-		if rawJson, err = ioutil.ReadAll(r.Body); err != nil {
-			res := http.StatusBadRequest
-			status += addHStatus(res)
-			w.WriteHeader(res)
-			w.Header().Set("content-type", "text/plain")
-			w.Write([]byte("400 Bad Request\n"))
-			w.Write([]byte(err.Error()))
-			log.Println(status)
-			return
-		}
-		update, err := LoadUpdate(rawJson)
-		if err != nil || !update.Validate() {
-			res := http.StatusBadRequest
-			status += addHStatus(res)
-			w.WriteHeader(res)
-			w.Header().Set("content-type", "text/plain")
-			w.Write([]byte("400 Internal Server Error\n"))
-			if err != nil {
-				w.Write([]byte(err.Error()))
-			} else {
-				w.Write([]byte("invalid client data"))
-			}
-			log.Println(status)
-			return
-		}
-		shortid, err := ClientUpdate(update)
-		if err != nil {
-			res := http.StatusInternalServerError
-			status += addHStatus(res)
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Header().Set("content-type", "text/plain")
-			w.Write([]byte("500 Internal Server Error\n"))
-			w.Write([]byte(err.Error()))
-			log.Println(status)
-		} else {
-			res := http.StatusOK
-			status += addHStatus(res)
-			w.Header().Set("content-type", "text/plain")
-			w.Write([]byte(shortid))
-			log.Println(status)
-		}
+		postRouter(w, r, status)
 		return
 	} else if r.Method == "GET" {
-		shortid := feed_strip.ReplaceAllString(r.URL.Path, "$1")
-		if len(shortid) == shorten.ShortLen {
-			var jsonResp []byte
-			uuid, err := uuidFromShort(shortid)
-			if len(uuid) == 0 {
-				res := http.StatusNotFound
-				status += addHStatus(res)
-				w.WriteHeader(res)
-				w.Header().Set("content-type",
-					"text/plain")
-				w.Write([]byte("feed not found\n"))
-				log.Println(status)
-				return
-			}
-			update, err := FetchFeed(string(uuid))
-			if err != nil {
-				res := http.StatusNotFound
-				status += addHStatus(res)
-				w.WriteHeader(res)
-				w.Header().Set("content-type", "text/plain")
-				w.Write([]byte("feed not found\n"))
-				w.Write([]byte(err.Error()))
-				log.Println(status)
-				return
-			}
-			var response Response
-			response.Feeds = update.Feeds
-			jsonResp, err = json.Marshal(response)
-			if err != nil {
-				res := http.StatusBadRequest
-				status += addHStatus(res)
-				w.WriteHeader(res)
-				w.Header().Set("content-type", "text/plain")
-				w.Write([]byte("invalid feed list"))
-				log.Println(status)
-				return
-			} else {
-				status += addHStatus(http.StatusOK)
-				w.Write(jsonResp)
-			}
-			log.Println(status)
-			return
-		} else if r.URL.Path == "/" {
-			w.Header().Set("content-type", "text/plain")
-			w.Write([]byte(fmt.Sprintf("opmlfeed server %s\n\n",
-				OPMLFEED_VERSION)))
-			w.Write(index_text)
-			status += addHStatus(http.StatusOK)
-			log.Println(status)
-		} else {
-			res := http.StatusNotFound
-			status += addHStatus(res)
-			w.WriteHeader(res)
-			w.Header().Set("content-type", "text/plain")
-			w.Write([]byte("not found\n"))
-			log.Println(status)
-		}
+		getRouter(w, r, status)
+		return
 	}
 }
 
