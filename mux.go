@@ -63,6 +63,7 @@ func sendJsonShortid(w http.ResponseWriter, r *http.Request, status string,
 	status += addHStatus(res)
 	w.Header().Set("content-type", "text/plain")
 	w.Write([]byte(shortid))
+        log.Println(status)
 }
 
 func postRouter(w http.ResponseWriter, r *http.Request, status string) {
