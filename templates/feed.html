@@ -1,3 +1,9 @@
+    <div id="wrap">
+      <div class="container">
+        <div class="row">
+          <div class="span2"></div>
+          <div class="span8">
+
             <h1 style="text-align:center">{{.User}}'s feed</h1>
             <ul>
             {{with .Feeds}}
@@ -5,3 +11,9 @@
               <li><a href="{{.Web}}">{{.Title}}</a> (<a href="{{.Xml}}">subscribe</a>)</li>
             {{end}}
             {{end}}
+          </div>
+          <div class="span2"></div>
+        </div>
+      </div>
+    </div>
+

@@ -1,6 +1,9 @@
             <h2 style="text-align:center">Oops!</h2>
             <h3 style="color:red;text-align:center">{{.Status}}:
             {{.StatusText}}</h3>
+            {{if .StatusHaiku}}
+            <p>{{.StatusHaiku}}</p>
+            {{end}}
             {{if .StatusPicture}}
             <img src="{{.StatusPictureFile}}" alt="{{.Status}} - {{.StatusText}}" width=600 />
             {{end}}

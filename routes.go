@@ -1,11 +1,13 @@
 package main
 
 import (
-        //"github.com/gokyle/webshell"
         "net/http"
 )
 
 func topRouter(w http.ResponseWriter, r *http.Request) {
+        if r.URL.RawQuery=="logout" {
+                store.DestroySession(r)
+        }
         if r.Method == "GET" {
                 getRouter(w, r)
                 return
@@ -22,7 +24,9 @@ func getRouter(w http.ResponseWriter, r *http.Request) {
                 return
         }
 
-        serveErrorPage(http.StatusNotFound, w, r)
+        if err := servePage(w, r); err != nil {
+                serveErrorPage(http.StatusNotFound, w, r)
+        }
 }
 
 func postRouter(w http.ResponseWriter, r *http.Request) {
