@@ -1,0 +1,45 @@
+            <h1 style="text-align:center">{{.Title}}</h1>
+            <p>opmlfeed is an OPML subscription service. it is a RESTful service,
+            and can be interacted with in the following ways:</p>
+
+            <ul>
+            <li><span class="mono">GET /</span>: display the service version
+            and this help information.</li>
+            <li><span class="mono">GET /:shortcode</span>: display the feed
+            information stored under the shortcode; if the requested
+            content-type is <span class="mono">text/html</span>, the page
+            will be served in human-friendly format. If the requested
+            content-type is <span class="mono">application/doenormaal.feed.v1+json</span>,
+            the response will be in the following JSON format:</li>
+            <pre>
+{"feeds":[{"title":"My Feed",
+            "xml":"http://feedburner.com/example-feed",
+            "web":"http://example.com"},
+           {"title":"Their Feed",
+            "xml":"http://feedburner.com/their-feed",
+            "web":"http://example.net"}]
+}
+            </pre>
+            <li><span class="mono">POST /</span>: update a client's feed
+            information. this JSON data expects two elements:
+              <ul>
+              <li><span class="mono">uuid</span>: a standard UUID in the form
+              ABCDEFGH-ABCD-ABCD-ABCD-ABCDEFGHIJKL where the allowed characters
+              are [A-Zaz0-9]</li>
+              <li>feeds: a list of feeds; each feed should have the
+              elements 'title', 'xml' (pointing to the feed's subscription
+              url), and 'web' (pointing to the feed's homepage).</li>
+             </ul>
+             for example:</li>
+             <pre>
+{"uuid":"54806ECE-2A3A-4828-B8DA-FF78B7208FF4",
+ "feeds":[{"title":"My Feed",
+           "xml":"http://feedburner.com/example-feed",
+           "web":"http://example.com"},
+          {"title":"Their Feed",
+           "xml":"http://feedburner.com/their-feed",
+           "web":"http://example.net"}]
+}
+             </pre>
+             </ul>
+

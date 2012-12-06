@@ -1,0 +1,7 @@
+            <h1 style="text-align:center">{{.User}}'s feed</h1>
+            <ul>
+            {{with .Feeds}}
+            {{range .}}
+              <li><a href="{{.Web}}">{{.Title}}</a> (<a href="{{.Xml}}">subscribe</a>)</li>
+            {{end}}
+            {{end}}
