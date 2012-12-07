@@ -26,12 +26,12 @@ var (
 
 func init() {
 	var err error
-	header_master, err = webshell.ServeTemplate(header_tpl,
+	header_master, err = webshell.BuildTemplate(header_tpl,
 		struct{ Title string }{appname})
 	if err != nil {
 		panic("couldn't build templated header: " + err.Error())
 	}
-	footer_master, err = webshell.ServeTemplate(footer_tpl, nil)
+	footer_master, err = webshell.BuildTemplate(footer_tpl, nil)
 	if err != nil {
 		panic("couldn't build templated footer: " + err.Error())
 	}
@@ -44,7 +44,7 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 	page := struct {
 		Title string
 	}{appname}
-	index, err := webshell.ServeTemplate(index_tpl, page)
+	index, err := webshell.BuildTemplate(index_tpl, page)
 	if err != nil {
 	}
 
@@ -58,7 +58,7 @@ func servePage(w http.ResponseWriter, r *http.Request) error {
 	var page = struct {
 		Title string
 	}{appname}
-	body, err := webshell.ServeTemplateFile(`templates` + r.URL.Path, page)
+	body, err := webshell.BuildTemplateFile(`templates` + r.URL.Path, page)
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func serveErrorPage(status int, w http.ResponseWriter, r *http.Request) {
 		errpage.StatusPicture = true
 		errpage.StatusPictureFile = "assets/img/404.png"
 	}
-	body, err := webshell.ServeTemplate(error_tpl, errpage)
+	body, err := webshell.BuildTemplate(error_tpl, errpage)
 	if err != nil {
 		webshell.Error500(err.Error(), "text/plain", w, r)
 		return
